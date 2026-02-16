@@ -1,140 +1,74 @@
-# 📚 Rural Coaching Management App
+# EduGram App
 
-A lightweight, offline-first mobile application built using **Flutter** and **Firebase** to help rural coaching centers manage student attendance and academic progress efficiently.
+A Flutter-based mobile application for rural coaching centers to manage attendance, marks, and student performance with offline-first capabilities.
 
----
+## Features
 
-## 📌 Problem Statement
+- 📱 Phone OTP Authentication
+- 👥 Student Management
+- ✅ Attendance Tracking
+- 📊 Marks Entry
+- 📈 Performance Reports
+- 🔄 Offline-First Sync
+- 📲 Parent Notifications
 
-Rural coaching centers often rely on paper registers to track student attendance and academic performance. This leads to:
+## Getting Started
 
-* Loss or damage of records
-* Manual calculation of attendance and marks
-* No performance analytics
-* Parents being unaware of student progress
-* Difficulty using complex digital systems
-* Poor internet connectivity issues
+### Prerequisites
 
-There is a need for a simple, reliable, and accessible digital solution tailored for rural environments.
+- Flutter SDK (3.0.0 or higher)
+- Android Studio / VS Code
+- Android device or emulator
 
----
+### Installation
 
-## 🎯 Objective
-
-To build a lightweight mobile application that:
-
-* Replaces paper-based attendance registers
-* Automatically tracks student performance
-* Works even with low internet connectivity
-* Provides secure cloud backup
-* Is simple enough for non-technical teachers
-
----
-
-## 👥 Target Users
-
-### Admin (Institute Owner)
-
-* Create and manage institute
-* Add teachers
-* Assign batches
-* View overall reports
-
-### Teacher (Primary User)
-
-* Create batches
-* Add students
-* Take attendance
-* Enter marks
-* View reports
-
----
-
-## 🏗️ System Architecture
-
-The app follows an **Offline-First Architecture**:
-
-```
-Mobile Device (Local Storage)
-        ↓
-   Auto Sync System
-        ↓
-Firebase Cloud (Permanent Backup)
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd EduGram
 ```
 
-* Data is stored locally first
-* Automatically synced when internet becomes available
-* Prevents data loss even in low-network rural areas
+2. Install dependencies:
+```bash
+flutter pub get
+```
 
----
+3. Run the app:
+```bash
+flutter run
+```
 
-## 🚀 Core Features (MVP)
+## Project Structure
 
-* Phone OTP Authentication
-* Batch Management
-* Student Management
-* Attendance Tracking
-* Attendance History
+```
+lib/
+├── main.dart                 # App entry point
+├── theme/                    # Design system
+│   ├── app_colors.dart
+│   ├── app_text_styles.dart
+│   ├── app_dimensions.dart
+│   └── app_theme.dart
+├── screens/                  # UI screens
+│   └── auth/
+│       └── login_screen.dart
+└── widgets/                  # Reusable components
+```
 
----
+## Design System
 
-## 📊 Future Enhancements
+- **Colors**: Green primary theme (education/growth)
+- **Typography**: Large, readable fonts (18-28px)
+- **Touch Targets**: Minimum 56dp for rural users
+- **Offline Indicator**: Shows sync status
 
-* Marks & Test Management
-* Performance Analytics
-* Parent Notifications
-* Fees Tracking
-* Admin Dashboard
+## Development
 
----
+This is the frontend implementation. Backend team handles:
+- Firebase setup
+- Authentication logic
+- Database operations
+- Offline sync mechanism
 
-## 🛠️ Tech Stack
+## License
 
-**Frontend:** Flutter
-**Backend:** Firebase Firestore
-**Authentication:** Firebase Phone OTP
-**Local Storage:** Hive / SQLite
-**Cloud Backup:** Firebase
-
----
-
-## 📱 Lightweight Design Goals
-
-* App size under 50 MB
-* Optimized for low-end Android devices
-* Minimal data consumption
-* Fast loading screens
-* Simple and clean UI
-
----
-
-## 🔒 Why This Solution Works
-
-| Problem            | Solution             |
-| ------------------ | -------------------- |
-| Registers get lost | Cloud backup         |
-| Manual calculation | Automatic reports    |
-| Low internet       | Offline-first design |
-| Complex systems    | Simple mobile UI     |
-
----
-
-## 🏁 Development Strategy
-
-The app is built feature-by-feature:
-
-1. Authentication
-2. Batch Management
-3. Student Management
-4. Attendance System
-5. Reports & Enhancements
-
-This ensures stability and incremental progress.
-
----
-
-## 📌 Project Vision
-
-To digitally empower rural coaching centers with a simple, reliable, and accessible student management system.
-
----
+Copyright © 2026 Rural Coach
