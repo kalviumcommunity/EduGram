@@ -43,3 +43,14 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Environment variables
+.env
+*.env
+
+# Android signing keys
+/android/key.properties
+
+# Backup/Temp files
+*.bak
+*.tmp
