@@ -68,3 +68,5 @@ ios/Flutter/Flutter.podspec
 *.bak
 *.tmp
 analyze_output.txt
+
+serviceAccountKey.json
