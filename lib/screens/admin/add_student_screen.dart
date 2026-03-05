@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../app_colors.dart';
 
-// ── Same colors as dashboard ──
-const _blue = Color(0xFF2196F3);
-const _blueDark = Color(0xFF1565C0);
-const _blueSoft = Color(0xFFE8F1FD);
-const _bg = Color(0xFFF0F3FA);
-const _darkText = Color(0xFF1C2233);
-const _subText = Color(0xFF8C96A8);
-const _divider = Color(0xFFECEFF5);
-const _inputBg = Color(0xFFF6F7FB);
+// ── Color aliases pointing to shared constants ──
+const _blue = appBlue;
+const _blueDark = appBlueDark;
+const _blueSoft = appBlueSoft;
+const _bg = appBg;
+const _darkText = appDarkText;
+const _subText = appSubText;
+const _divider = appDivider;
+const _inputBg = appInputBg;
 
 /// Capitalizes the first letter after every space
 class _CapitalizeWordsFormatter extends TextInputFormatter {
@@ -87,7 +88,8 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
         Navigator.pop(context, true);
       }
     } catch (e) {
-      _showMsg('Error: ${e.toString()}');
+      debugPrint('AddStudentScreen: Failed to save student: $e');
+      _showMsg('An error occurred while adding the student. Please try again.');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
