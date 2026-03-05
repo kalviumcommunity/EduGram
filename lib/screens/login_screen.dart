@@ -84,19 +84,38 @@ class _LoginScreenState extends State<LoginScreen> {
     _setLoading(true);
 
     try {
-      final doc = await FirebaseFirestore.instance
+      Map<String, dynamic>? userData;
+
+      // Step 1: Try original document-ID lookup (+91XXXXXXXXXX)
+      // This covers admin users set up manually in Firestore
+      final docById = await FirebaseFirestore.instance
           .collection('users')
           .doc(_fullPhone)
           .get();
 
-      if (!doc.exists) {
+      if (docById.exists) {
+        userData = docById.data();
+      } else {
+        // Step 2: Fall back to querying by 'phone' field (10-digit)
+        // This covers teachers/users added via the app
+        final queryByField = await FirebaseFirestore.instance
+            .collection('users')
+            .where('phone', isEqualTo: phone)
+            .limit(1)
+            .get();
+
+        if (queryByField.docs.isNotEmpty) {
+          userData = queryByField.docs.first.data();
+        }
+      }
+
+      if (userData == null) {
         _setLoading(false);
         _setError('This phone number is not registered.');
         return;
       }
 
-      final data = doc.data();
-      final correctOtp = data?['otp']?.toString();
+      final correctOtp = userData['otp']?.toString();
 
       if (correctOtp == null) {
         _setLoading(false);
@@ -107,11 +126,9 @@ class _LoginScreenState extends State<LoginScreen> {
       _setLoading(false);
       await _showOtpNotification(correctOtp);
 
-      // Tell Android autofill to save the phone number
       TextInput.finishAutofillContext();
 
       if (!mounted) return;
-      // Navigate to separate OTP screen
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => OtpScreen(

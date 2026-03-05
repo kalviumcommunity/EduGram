@@ -111,10 +111,19 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
 
     setState(() => _saving = true);
     try {
+      // Sort selectedDays in Mon→Sun order so the list is consistent
+      final sortedDays =
+          _allDays.where((d) => _selectedDays.contains(d)).toList();
+
       await FirebaseFirestore.instance.collection('batches').add({
         'name': name,
         'subject': subject,
         'schedule': _scheduleString,
+        // Save days as a list — used by admin dashboard to filter today's batches
+        'selectedDays': sortedDays,
+        // Save start/end times separately — used by dashboard for time display
+        'startTime': _startTime != null ? _formatTime24(_startTime!) : null,
+        'endTime': _endTime != null ? _formatTime24(_endTime!) : null,
         'maxStudents': int.tryParse(maxStudents) ?? 0,
         'createdAt': FieldValue.serverTimestamp(),
       });
