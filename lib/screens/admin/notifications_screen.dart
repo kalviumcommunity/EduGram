@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../app_colors.dart';
 
-const _blue = Color(0xFF2196F3);
-const _blueSoft = Color(0xFFE8F1FD);
-const _darkText = Color(0xFF1C2233);
-const _subText = Color(0xFF8C96A8);
-const _divider = Color(0xFFECEFF5);
-const _cardBg = Colors.white;
-const _bg = Color(0xFFF0F3FA);
+// ── Color aliases pointing to shared constants ──
+const _blue = appBlue;
+const _blueSoft = appBlueSoft;
+const _darkText = appDarkText;
+const _subText = appSubText;
+const _divider = appDivider;
+const _cardBg = appCardBg;
+const _bg = appBg;
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -28,8 +30,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   List<QueryDocumentSnapshot> _studentDocs = [];
   List<QueryDocumentSnapshot> _batchDocs = [];
 
-  late List<Stream<QuerySnapshot>> _streams;
-
   @override
   void initState() {
     super.initState();
@@ -47,6 +47,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         .listen((snap) {
       _teacherDocs = snap.docs;
       _rebuild();
+    }, onError: (e) {
+      debugPrint('NotificationsScreen: teacher stream error: $e');
+      if (mounted) setState(() => _isLoading = false);
     });
 
     // Student stream
@@ -58,6 +61,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         .listen((snap) {
       _studentDocs = snap.docs;
       _rebuild();
+    }, onError: (e) {
+      debugPrint('NotificationsScreen: student stream error: $e');
+      if (mounted) setState(() => _isLoading = false);
     });
 
     // Batch stream
@@ -69,6 +75,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         .listen((snap) {
       _batchDocs = snap.docs;
       _rebuild();
+    }, onError: (e) {
+      debugPrint('NotificationsScreen: batch stream error: $e');
+      if (mounted) setState(() => _isLoading = false);
     });
   }
 

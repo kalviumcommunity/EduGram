@@ -10,18 +10,19 @@ import 'students_list_screen.dart';
 import 'batches_list_screen.dart';
 import 'admin_profile_screen.dart';
 import 'notifications_screen.dart';
+import '../../app_colors.dart';
 
-// ── Colors (UNCHANGED) ──
-const _blue = Color(0xFF2196F3);
-const _blueDark = Color(0xFF1565C0);
-const _blueSoft = Color(0xFFE8F1FD);
-const _dark = Color(0xFF252D3D);
-const _darkGrad = Color(0xFF374357);
-const _bg = Color(0xFFF0F3FA);
-const _darkText = Color(0xFF1C2233);
-const _subText = Color(0xFF8C96A8);
-const _cardBg = Colors.white;
-const _divider = Color(0xFFECEFF5);
+// ── Color aliases pointing to shared constants ──
+const _blue = appBlue;
+const _blueDark = appBlueDark;
+const _blueSoft = appBlueSoft;
+const _dark = appDark;
+const _darkGrad = appDarkGrad;
+const _bg = appBg;
+const _darkText = appDarkText;
+const _subText = appSubText;
+const _cardBg = appCardBg;
+const _divider = appDivider;
 
 class AdminDashboard extends StatefulWidget {
   final String phoneNumber;
@@ -124,11 +125,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
       String? rT, rS;
       if (results[0].docs.isNotEmpty) {
         final d = results[0].docs.last.data();
-        rT = d['name']?.toString() ?? 'Sarah Smith';
+        rT = d['name']?.toString();
       }
       if (results[1].docs.isNotEmpty) {
         final d = results[1].docs.last.data();
-        rS = d['name']?.toString() ?? 'John Doe';
+        rS = d['name']?.toString();
       }
 
       final teachersMap = <String, String>{};
@@ -214,14 +215,22 @@ class _AdminDashboardState extends State<AdminDashboard> {
           _teacherCount = results[0].docs.length;
           _studentCount = results[1].docs.length;
           _batchCount = results[2].docs.length;
-          _recentTeacher = rT ?? 'Sarah Smith';
-          _recentStudent = rS ?? 'John Doe';
+          _recentTeacher = rT;
+          _recentStudent = rS;
           _todayBatches = currentDayBatches;
           _isLoading = false;
         });
       }
-    } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
+    } catch (e) {
+      debugPrint('AdminDashboard: Failed to load data: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to load dashboard data. Pull down to retry.'),
+          ),
+        );
+      }
     }
   }
 

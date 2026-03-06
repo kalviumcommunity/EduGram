@@ -271,7 +271,8 @@ class _OtpScreenState extends State<OtpScreen> {
                           decoration: const InputDecoration(
                             border: InputBorder.none,
                             counterText: '',
-                            contentPadding: EdgeInsets.symmetric(vertical: 16),
+                            contentPadding:
+                                EdgeInsets.symmetric(vertical: 16),
                           ),
                           inputFormatters: [
                             FilteringTextInputFormatter.digitsOnly,
