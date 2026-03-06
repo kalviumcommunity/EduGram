@@ -118,6 +118,19 @@ class _BatchesListScreenState extends State<BatchesListScreen> {
     if (result == true) _loadBatches();
   }
 
+  Future<void> _navigateToEdit(QueryDocumentSnapshot doc) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddBatchScreen(
+          batchId: doc.id,
+          batchData: doc.data() as Map<String, dynamic>,
+        ),
+      ),
+    );
+    if (result == true) _loadBatches();
+  }
+
   void _showMsg(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg),
@@ -419,6 +432,22 @@ class _BatchesListScreenState extends State<BatchesListScreen> {
                             fontWeight: FontWeight.w600,
                             color: _green,
                           ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Edit button
+                      InkWell(
+                        onTap: () => _navigateToEdit(doc),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: _orangeSoft,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.edit_rounded,
+                              color: _orange, size: 18),
                         ),
                       ),
                       const SizedBox(width: 8),

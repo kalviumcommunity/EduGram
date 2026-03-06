@@ -116,6 +116,19 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
     if (result == true) _loadTeachers();
   }
 
+  Future<void> _navigateToEdit(QueryDocumentSnapshot doc) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddTeacherScreen(
+          teacherId: doc.id,
+          teacherData: doc.data() as Map<String, dynamic>,
+        ),
+      ),
+    );
+    if (result == true) _loadTeachers();
+  }
+
   void _showMsg(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg),
@@ -259,18 +272,91 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                           : RefreshIndicator(
                               color: _royal,
                               onRefresh: _loadTeachers,
-                              child: ListView.builder(
-                                padding: const EdgeInsets.fromLTRB(
-                                    16, 16, 16, 100),
-                                itemCount: _filtered.length,
-                                itemBuilder: (_, i) =>
-                                    _buildTeacherCard(_filtered[i], i),
-                              ),
+                              child: _buildGroupedList(),
                             ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildGroupedList() {
+    // Group filtered teachers by batch
+    final Map<String, List<QueryDocumentSnapshot>> grouped = {};
+    for (var doc in _filtered) {
+      final data = doc.data() as Map<String, dynamic>;
+      final batch = data['batch']?.toString() ?? 'Unassigned';
+      final key = batch.isNotEmpty ? batch : 'Unassigned';
+      if (!grouped.containsKey(key)) {
+        grouped[key] = [];
+      }
+      grouped[key]!.add(doc);
+    }
+
+    // Sort keys (Unassigned at the end)
+    final keys = grouped.keys.toList();
+    keys.sort((a, b) {
+      if (a == 'Unassigned') return 1;
+      if (b == 'Unassigned') return -1;
+      return a.compareTo(b);
+    });
+
+    int globalIndex = 0;
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+      itemCount: keys.length,
+      itemBuilder: (context, sectionIndex) {
+        final batchName = keys[sectionIndex];
+        final teachersInBatch = grouped[batchName]!;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Section Header
+            Padding(
+              padding: EdgeInsets.only(left: 4, bottom: 12, top: sectionIndex == 0 ? 0 : 16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: _royal,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    batchName,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: _darkText,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '(${teachersInBatch.length})',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _subText,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Teacher Cards
+            ...teachersInBatch.map((doc) {
+              final widget = _buildTeacherCard(doc, globalIndex);
+              globalIndex++;
+              return widget;
+            }),
+          ],
+        );
+      },
     );
   }
 
@@ -398,67 +484,103 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                     ),
                   ),
                   const SizedBox(width: 14),
-                  // Info
+                  // Info + actions
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          name,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: _darkText,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.phone_android_rounded,
-                                size: 13, color: _subText),
-                            const SizedBox(width: 4),
-                            Text(
-                              phone,
-                              style: const TextStyle(
-                                  fontSize: 12, color: _subText),
+                            // Name and Phone
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    name,
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: _darkText,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.phone_android_rounded,
+                                          size: 13, color: _subText),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        phone,
+                                        style: const TextStyle(
+                                            fontSize: 12, color: _subText),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Action buttons
+                            const SizedBox(width: 8),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                InkWell(
+                                  onTap: () => _navigateToEdit(doc),
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: _royalSoft,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(Icons.edit_rounded,
+                                        color: _royal, size: 16),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                InkWell(
+                                  onTap: () => _deleteTeacher(doc),
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFFEBEE),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(Icons.delete_outline_rounded,
+                                        color: Color(0xFFE53935), size: 16),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
+                        if (batch != null && batch.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: _royalSoft,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              batch,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: _royal,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
-                    ),
-                  ),
-                  // Batch badge
-                  if (batch != null && batch.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: _royalSoft,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        batch,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: _royal,
-                        ),
-                      ),
-                    ),
-                  const SizedBox(width: 4),
-                  // Delete button
-                  InkWell(
-                    onTap: () => _deleteTeacher(doc),
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFEBEE),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(Icons.delete_outline_rounded,
-                          color: Color(0xFFE53935), size: 18),
                     ),
                   ),
                 ],
