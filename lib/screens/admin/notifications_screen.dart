@@ -17,107 +17,124 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+
+  // We merge three streams manually by combining their snapshots
+  List<_NotificationItem> _notifications = [];
   bool _isLoading = true;
-  final List<_NotificationItem> _notifications = [];
+
+  // Store latest snapshots from each collection
+  List<QueryDocumentSnapshot> _teacherDocs = [];
+  List<QueryDocumentSnapshot> _studentDocs = [];
+  List<QueryDocumentSnapshot> _batchDocs = [];
+
+  late List<Stream<QuerySnapshot>> _streams;
 
   @override
   void initState() {
     super.initState();
-    _loadNotifications();
+    _listenToAll();
   }
 
-  Future<void> _loadNotifications() async {
-    setState(() => _isLoading = true);
-    try {
-      // Load recent teachers
-      final teachers = await FirebaseFirestore.instance
-          .collection('users')
-          .where('role', isEqualTo: 'teacher')
-          .orderBy('createdAt', descending: true)
-          .limit(10)
-          .get();
+  void _listenToAll() {
+    // Teacher stream
+    _db
+        .collection('users')
+        .where('role', isEqualTo: 'teacher')
+        .orderBy('createdAt', descending: true)
+        .limit(20)
+        .snapshots()
+        .listen((snap) {
+      _teacherDocs = snap.docs;
+      _rebuild();
+    });
 
-      // Load recent students
-      final students = await FirebaseFirestore.instance
-          .collection('students')
-          .orderBy('createdAt', descending: true)
-          .limit(10)
-          .get();
+    // Student stream
+    _db
+        .collection('students')
+        .orderBy('createdAt', descending: true)
+        .limit(20)
+        .snapshots()
+        .listen((snap) {
+      _studentDocs = snap.docs;
+      _rebuild();
+    });
 
-      // Load recent batches
-      final batches = await FirebaseFirestore.instance
-          .collection('batches')
-          .orderBy('createdAt', descending: true)
-          .limit(10)
-          .get();
+    // Batch stream
+    _db
+        .collection('batches')
+        .orderBy('createdAt', descending: true)
+        .limit(20)
+        .snapshots()
+        .listen((snap) {
+      _batchDocs = snap.docs;
+      _rebuild();
+    });
+  }
 
-      final items = <_NotificationItem>[];
+  void _rebuild() {
+    final items = <_NotificationItem>[];
 
-      for (final doc in teachers.docs) {
-        final d = doc.data();
-        final name = d['name']?.toString() ?? 'Unknown';
-        final ts = d['createdAt'] as Timestamp?;
-        items.add(_NotificationItem(
-          icon: Icons.person_add_rounded,
-          iconColor: const Color(0xFF1565C0),
-          iconBg: const Color(0xFFE3F2FD),
-          title: 'New Teacher Added',
-          message: '$name was added as a teacher.',
-          time: ts?.toDate(),
-          type: 'teacher',
-        ));
-      }
+    for (final doc in _teacherDocs) {
+      final d = doc.data() as Map<String, dynamic>;
+      final name = d['name']?.toString() ?? 'Unknown';
+      final ts = d['createdAt'] as Timestamp?;
+      items.add(_NotificationItem(
+        icon: Icons.person_add_rounded,
+        iconColor: const Color(0xFF1565C0),
+        iconBg: const Color(0xFFE3F2FD),
+        title: 'New Teacher Added',
+        message: '$name was added as a teacher.',
+        time: ts?.toDate(),
+        type: 'teacher',
+      ));
+    }
 
-      for (final doc in students.docs) {
-        final d = doc.data();
-        final name = d['name']?.toString() ?? 'Unknown';
-        final grade = d['grade']?.toString();
-        final ts = d['createdAt'] as Timestamp?;
-        items.add(_NotificationItem(
-          icon: Icons.school_rounded,
-          iconColor: const Color(0xFF7C4DBA),
-          iconBg: const Color(0xFFF0EBF8),
-          title: 'New Student Enrolled',
-          message: '$name${grade != null ? ' (Grade $grade)' : ''} was added.',
-          time: ts?.toDate(),
-          type: 'student',
-        ));
-      }
+    for (final doc in _studentDocs) {
+      final d = doc.data() as Map<String, dynamic>;
+      final name = d['name']?.toString() ?? 'Unknown';
+      final grade = d['grade']?.toString();
+      final ts = d['createdAt'] as Timestamp?;
+      items.add(_NotificationItem(
+        icon: Icons.school_rounded,
+        iconColor: const Color(0xFF7C4DBA),
+        iconBg: const Color(0xFFF0EBF8),
+        title: 'New Student Enrolled',
+        message: '$name${grade != null ? ' (Grade $grade)' : ''} was added.',
+        time: ts?.toDate(),
+        type: 'student',
+      ));
+    }
 
-      for (final doc in batches.docs) {
-        final d = doc.data();
-        final name = d['name']?.toString() ?? 'Unknown';
-        final subject = d['subject']?.toString() ?? '';
-        final ts = d['createdAt'] as Timestamp?;
-        items.add(_NotificationItem(
-          icon: Icons.layers_rounded,
-          iconColor: const Color(0xFFD97A1A),
-          iconBg: const Color(0xFFFFF0E0),
-          title: 'New Batch Created',
-          message: '$name${subject.isNotEmpty ? ' — $subject' : ''} was created.',
-          time: ts?.toDate(),
-          type: 'batch',
-        ));
-      }
+    for (final doc in _batchDocs) {
+      final d = doc.data() as Map<String, dynamic>;
+      final name = d['name']?.toString() ?? 'Unknown';
+      final subject = d['subject']?.toString() ?? '';
+      final ts = d['createdAt'] as Timestamp?;
+      items.add(_NotificationItem(
+        icon: Icons.layers_rounded,
+        iconColor: const Color(0xFFD97A1A),
+        iconBg: const Color(0xFFFFF0E0),
+        title: 'New Batch Created',
+        message: '$name${subject.isNotEmpty ? ' — $subject' : ''} was created.',
+        time: ts?.toDate(),
+        type: 'batch',
+      ));
+    }
 
-      // Sort by time, newest first
-      items.sort((a, b) {
-        if (a.time == null && b.time == null) return 0;
-        if (a.time == null) return 1;
-        if (b.time == null) return -1;
-        return b.time!.compareTo(a.time!);
+    // Sort by time, newest first
+    items.sort((a, b) {
+      if (a.time == null && b.time == null) return 0;
+      if (a.time == null) return 1;
+      if (b.time == null) return -1;
+      return b.time!.compareTo(a.time!);
+    });
+
+    if (mounted) {
+      setState(() {
+        _notifications = items;
+        _isLoading = false;
       });
-
-      if (mounted) {
-        setState(() {
-          _notifications
-            ..clear()
-            ..addAll(items);
-          _isLoading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -195,15 +212,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       child: CircularProgressIndicator(color: _blue))
                   : _notifications.isEmpty
                       ? _buildEmpty()
-                      : RefreshIndicator(
-                          color: _blue,
-                          onRefresh: _loadNotifications,
-                          child: ListView.builder(
-                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-                            itemCount: _notifications.length,
-                            itemBuilder: (_, i) =>
-                                _buildNotificationCard(_notifications[i], i),
-                          ),
+                      : ListView.builder(
+                          padding:
+                              const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                          itemCount: _notifications.length,
+                          itemBuilder: (_, i) =>
+                              _buildNotificationCard(_notifications[i], i),
                         ),
             ),
           ],
@@ -247,10 +261,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget _buildNotificationCard(_NotificationItem item, int index) {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: Duration(milliseconds: 300 + index * 50),
+      duration: Duration(milliseconds: 250 + index * 40),
       curve: Curves.easeOutCubic,
-      builder: (_, val, child) =>
-          Opacity(opacity: val, child: Transform.translate(offset: Offset(0, 20 * (1 - val)), child: child)),
+      builder: (_, val, child) => Opacity(
+          opacity: val,
+          child: Transform.translate(
+              offset: Offset(0, 16 * (1 - val)), child: child)),
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(14),
@@ -258,18 +274,25 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           color: _cardBg,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: _divider, width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 42,
-              height: 42,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
                 color: item.iconBg,
-                borderRadius: BorderRadius.circular(11),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(item.icon, color: item.iconColor, size: 20),
+              child: Icon(item.icon, color: item.iconColor, size: 22),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -290,8 +313,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       ),
                       Text(
                         _timeAgo(item.time),
-                        style: const TextStyle(
-                            fontSize: 11, color: _subText),
+                        style:
+                            const TextStyle(fontSize: 11, color: _subText),
                       ),
                     ],
                   ),
