@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'admin/admin_dashboard.dart';
+import 'home_screen.dart';
+import '../services/firestore_service.dart';
 
 class OtpScreen extends StatefulWidget {
   final String phoneNumber;
@@ -89,15 +91,35 @@ class _OtpScreenState extends State<OtpScreen> {
     await Future.delayed(const Duration(milliseconds: 500));
 
     if (otp == widget.correctOtp) {
+      // ── OTP correct: look up role in Firestore ──
+      String? role;
+      try {
+        role = await FirestoreService().getRoleByPhone(widget.phoneNumber);
+      } catch (_) {
+        // On error fall back to admin
+        role = null;
+      }
+
       _setLoading(false);
       if (!mounted) return;
-      // Tell Android autofill that we're done
       TextInput.finishAutofillContext();
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => AdminDashboard(phoneNumber: widget.phoneNumber),
-        ),
-      );
+
+      if (role == 'teacher') {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) =>
+                TeacherDashboard(phoneNumber: widget.phoneNumber),
+          ),
+        );
+      } else {
+        // 'admin' or any other role
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) =>
+                AdminDashboard(phoneNumber: widget.phoneNumber),
+          ),
+        );
+      }
     } else {
       _setLoading(false);
       _setError('The OTP entered is incorrect. Please try again.');

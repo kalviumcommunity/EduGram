@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../login_screen.dart';
@@ -42,10 +43,72 @@ class _AdminDashboardState extends State<AdminDashboard> {
   String? _recentStudent;
   List<Map<String, dynamic>> _todayBatches = [];
 
+  // ── Notification badge ──
+  int _notifCount = 0;
+  final List<StreamSubscription> _notifSubs = [];
+
+  // Track doc IDs we've already seen so we only badge NEW ones
+  final Set<String> _seenIds = {};
+
   @override
   void initState() {
     super.initState();
     _loadData();
+    _listenToNotifCount();
+  }
+
+  @override
+  void dispose() {
+    for (final s in _notifSubs) {
+      s.cancel();
+    }
+    super.dispose();
+  }
+
+  void _listenToNotifCount() {
+    final db = FirebaseFirestore.instance;
+    // Listen to teachers
+    _notifSubs.add(
+      db
+          .collection('users')
+          .where('role', isEqualTo: 'teacher')
+          .orderBy('createdAt', descending: true)
+          .limit(20)
+          .snapshots()
+          .listen((snap) => _updateBadge(snap.docs)),
+    );
+    // Listen to batches
+    _notifSubs.add(
+      db
+          .collection('batches')
+          .orderBy('createdAt', descending: true)
+          .limit(20)
+          .snapshots()
+          .listen((snap) => _updateBadge(snap.docs)),
+    );
+  }
+
+  void _updateBadge(List<QueryDocumentSnapshot> docs) {
+    int newCount = 0;
+    for (final doc in docs) {
+      if (!_seenIds.contains(doc.id)) {
+        newCount++;
+      }
+    }
+    if (mounted && newCount > 0) {
+      setState(() => _notifCount += newCount);
+      for (final doc in docs) {
+        _seenIds.add(doc.id);
+      }
+    }
+  }
+
+  void _openNotifications() {
+    setState(() => _notifCount = 0);
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+    );
   }
 
   Future<void> _loadData() async {
@@ -282,21 +345,47 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ),
             ),
           ),
-          Material(
-            color: const Color(0xFFF0F3FA),
-            shape: const CircleBorder(),
-            child: InkWell(
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+          // ── Bell with badge ──
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Material(
+                color: const Color(0xFFF0F3FA),
+                shape: const CircleBorder(),
+                child: InkWell(
+                  onTap: _openNotifications,
+                  customBorder: const CircleBorder(),
+                  child: const Padding(
+                    padding: EdgeInsets.all(9),
+                    child: Icon(Icons.notifications_outlined,
+                        color: Color(0xFF5C6780), size: 20),
+                  ),
+                ),
               ),
-              customBorder: const CircleBorder(),
-              child: const Padding(
-                padding: EdgeInsets.all(9),
-                child: Icon(Icons.notifications_outlined,
-                    color: Color(0xFF5C6780), size: 20),
-              ),
-            ),
+              if (_notifCount > 0)
+                Positioned(
+                  top: -2,
+                  right: -2,
+                  child: Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFE53935),
+                      shape: BoxShape.circle,
+                    ),
+                    constraints:
+                        const BoxConstraints(minWidth: 18, minHeight: 18),
+                    child: Text(
+                      _notifCount > 99 ? '99+' : '$_notifCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ],
       ),
