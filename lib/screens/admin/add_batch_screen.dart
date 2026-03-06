@@ -30,7 +30,10 @@ class _CapitalizeFirstFormatter extends TextInputFormatter {
 }
 
 class AddBatchScreen extends StatefulWidget {
-  const AddBatchScreen({super.key});
+  final String? batchId;
+  final Map<String, dynamic>? batchData;
+
+  const AddBatchScreen({super.key, this.batchId, this.batchData});
 
   @override
   State<AddBatchScreen> createState() => _AddBatchScreenState();
@@ -53,6 +56,39 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
     final h = t.hour.toString().padLeft(2, '0');
     final m = t.minute.toString().padLeft(2, '0');
     return '$h:$m';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.batchData != null) {
+      _batchNameController.text = widget.batchData!['name']?.toString() ?? '';
+      _subjectController.text = widget.batchData!['subject']?.toString() ?? '';
+      _maxStudentsController.text = widget.batchData!['maxStudents']?.toString() ?? '';
+      
+      if (widget.batchData!['selectedDays'] is List) {
+        for (final day in widget.batchData!['selectedDays']) {
+          _selectedDays.add(day.toString());
+        }
+      }
+      
+      if (widget.batchData!['startTime'] != null) {
+        final parts = widget.batchData!['startTime'].toString().split(':');
+        if (parts.length == 2) {
+          _startTime = TimeOfDay(hour: int.tryParse(parts[0]) ?? 9, minute: int.tryParse(parts[1]) ?? 0);
+        }
+      }
+      if (widget.batchData!['endTime'] != null) {
+        final parts = widget.batchData!['endTime'].toString().split(':');
+        if (parts.length == 2) {
+          _endTime = TimeOfDay(hour: int.tryParse(parts[0]) ?? 17, minute: int.tryParse(parts[1]) ?? 0);
+        }
+      }
+      
+      if (_maxStudentsController.text == '0') {
+        _maxStudentsController.text = ''; // Leave empty for 0
+      }
+    }
   }
 
   String get _scheduleString {
@@ -115,21 +151,34 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
       final sortedDays =
           _allDays.where((d) => _selectedDays.contains(d)).toList();
 
-      await FirebaseFirestore.instance.collection('batches').add({
+      final data = <String, dynamic>{
         'name': name,
         'subject': subject,
         'schedule': _scheduleString,
-        // Save days as a list — used by admin dashboard to filter today's batches
         'selectedDays': sortedDays,
-        // Save start/end times separately — used by dashboard for time display
         'startTime': _startTime != null ? _formatTime24(_startTime!) : null,
         'endTime': _endTime != null ? _formatTime24(_endTime!) : null,
         'maxStudents': int.tryParse(maxStudents) ?? 0,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-      if (mounted) {
-        _showMsg('Batch created successfully!');
-        Navigator.pop(context, true);
+      };
+
+      if (widget.batchId != null) {
+        // Update
+        await FirebaseFirestore.instance
+            .collection('batches')
+            .doc(widget.batchId)
+            .update(data);
+        if (mounted) {
+          _showMsg('Batch updated successfully!');
+          Navigator.pop(context, true);
+        }
+      } else {
+        // Add
+        data['createdAt'] = FieldValue.serverTimestamp();
+        await FirebaseFirestore.instance.collection('batches').add(data);
+        if (mounted) {
+          _showMsg('Batch created successfully!');
+          Navigator.pop(context, true);
+        }
       }
     } catch (e) {
       debugPrint('AddBatchScreen: Failed to save batch: $e');
@@ -174,11 +223,11 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
                     icon: const Icon(Icons.chevron_left_rounded,
                         color: _blue, size: 30),
                   ),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Add New Batch',
+                      widget.batchId != null ? 'Edit Batch' : 'Add New Batch',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
                         color: _darkText,
@@ -216,9 +265,9 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
                                 color: _blue, size: 44),
                           ),
                           const SizedBox(height: 10),
-                          const Text(
-                            'New Batch Details',
-                            style: TextStyle(
+                          Text(
+                            widget.batchId != null ? 'Edit Batch Details' : 'New Batch Details',
+                            style: const TextStyle(
                               fontSize: 12,
                               color: _subText,
                               fontWeight: FontWeight.w500,
@@ -335,7 +384,7 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
                               color: Colors.white, strokeWidth: 2))
                       : const Icon(Icons.add_box_rounded, size: 22),
                   label: Text(
-                    _saving ? 'Saving...' : 'Save Batch',
+                    _saving ? 'Saving...' : (widget.batchId != null ? 'Save Changes' : 'Save Batch'),
                     style: const TextStyle(
                         fontSize: 16, fontWeight: FontWeight.w700),
                   ),

@@ -41,7 +41,10 @@ class _CapitalizeWordsFormatter extends TextInputFormatter {
 }
 
 class AddTeacherScreen extends StatefulWidget {
-  const AddTeacherScreen({super.key});
+  final String? teacherId;
+  final Map<String, dynamic>? teacherData;
+
+  const AddTeacherScreen({super.key, this.teacherId, this.teacherData});
 
   @override
   State<AddTeacherScreen> createState() => _AddTeacherScreenState();
@@ -59,6 +62,11 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
   void initState() {
     super.initState();
     _loadBatches();
+    if (widget.teacherData != null) {
+      _nameController.text = widget.teacherData!['name']?.toString() ?? '';
+      _phoneController.text = widget.teacherData!['phone']?.toString() ?? '';
+      _selectedBatch = widget.teacherData!['batch']?.toString();
+    }
   }
 
   Future<void> _loadBatches() async {
@@ -96,17 +104,31 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
 
     setState(() => _saving = true);
     try {
-      await FirebaseFirestore.instance.collection('users').add({
+      final data = <String, dynamic>{
         'name': name,
         'phone': phone,
         'role': 'teacher',
         'batch': _selectedBatch,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      };
 
-      if (mounted) {
-        _showMsg('Teacher added successfully!');
-        Navigator.pop(context, true);
+      if (widget.teacherId != null) {
+        // Update existing
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.teacherId)
+            .update(data);
+        if (mounted) {
+          _showMsg('Teacher updated successfully!');
+          Navigator.pop(context, true);
+        }
+      } else {
+        // Add new
+        data['createdAt'] = FieldValue.serverTimestamp();
+        await FirebaseFirestore.instance.collection('users').add(data);
+        if (mounted) {
+          _showMsg('Teacher added successfully!');
+          Navigator.pop(context, true);
+        }
       }
     } catch (e) {
       debugPrint('AddTeacherScreen: Failed to save teacher: $e');
@@ -150,11 +172,11 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
                     icon: const Icon(Icons.chevron_left_rounded,
                         color: _blue, size: 30),
                   ),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Add New Teacher',
+                      widget.teacherId != null ? 'Edit Teacher' : 'Add New Teacher',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
                         color: _darkText,
@@ -287,7 +309,7 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
                               color: Colors.white, strokeWidth: 2))
                       : const Icon(Icons.person_add_rounded, size: 22),
                   label: Text(
-                    _saving ? 'Saving...' : 'Save Teacher',
+                    _saving ? 'Saving...' : (widget.teacherId != null ? 'Save Changes' : 'Save Teacher'),
                     style: const TextStyle(
                         fontSize: 16, fontWeight: FontWeight.w700),
                   ),

@@ -46,7 +46,10 @@ const _gradeOptions = [
 ];
 
 class AddStudentScreen extends StatefulWidget {
-  const AddStudentScreen({super.key});
+  final String? studentId;
+  final Map<String, dynamic>? studentData;
+
+  const AddStudentScreen({super.key, this.studentId, this.studentData});
 
   @override
   State<AddStudentScreen> createState() => _AddStudentScreenState();
@@ -56,7 +59,38 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   String? _selectedGrade;
+  String? _selectedBatch;
   bool _saving = false;
+
+  final List<String> _batches = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBatches();
+    if (widget.studentData != null) {
+      _nameController.text = widget.studentData!['name']?.toString() ?? '';
+      _phoneController.text = widget.studentData!['phone']?.toString() ?? '';
+      _selectedGrade = widget.studentData!['grade']?.toString();
+      _selectedBatch = widget.studentData!['batch']?.toString();
+    }
+  }
+
+  Future<void> _loadBatches() async {
+    try {
+      final snap = await FirebaseFirestore.instance.collection('batches').get();
+      if (mounted) {
+        setState(() {
+          _batches.clear();
+          for (final doc in snap.docs) {
+            _batches.add(doc.data()['name']?.toString() ?? doc.id);
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('AddStudentScreen: Failed to load batches: $e');
+    }
+  }
 
   Future<void> _saveStudent() async {
     final name = _nameController.text.trim();
@@ -77,19 +111,33 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
 
     setState(() => _saving = true);
     try {
-      await FirebaseFirestore.instance.collection('students').add({
+      final data = <String, dynamic>{
         'name': name,
         'phone': phone,
         'grade': _selectedGrade,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-      if (mounted) {
-        _showMsg('Student added successfully!');
-        Navigator.pop(context, true);
+        'batch': _selectedBatch,
+      };
+
+      if (widget.studentId != null) {
+        await FirebaseFirestore.instance
+            .collection('students')
+            .doc(widget.studentId)
+            .update(data);
+        if (mounted) {
+          _showMsg('Student updated successfully!');
+          Navigator.pop(context, true);
+        }
+      } else {
+        data['createdAt'] = FieldValue.serverTimestamp();
+        await FirebaseFirestore.instance.collection('students').add(data);
+        if (mounted) {
+          _showMsg('Student added successfully!');
+          Navigator.pop(context, true);
+        }
       }
     } catch (e) {
       debugPrint('AddStudentScreen: Failed to save student: $e');
-      _showMsg('An error occurred while adding the student. Please try again.');
+      _showMsg('An error occurred while saving the student. Please try again.');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -129,11 +177,11 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
                     icon: const Icon(Icons.chevron_left_rounded,
                         color: _blue, size: 30),
                   ),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Add New Student',
+                      widget.studentId != null ? 'Edit Student' : 'Add New Student',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
                         color: _darkText,
@@ -221,6 +269,26 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
                     _buildLabel('Grade'),
                     const SizedBox(height: 8),
                     _buildGradeDropdown(),
+                    const SizedBox(height: 20),
+
+                    // Assign Batch
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildLabel('Assign Batch'),
+                        const Text(
+                          'OPTIONAL',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: _subText,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    _buildBatchDropdown(),
                     const SizedBox(height: 40),
                   ],
                 ),
@@ -243,7 +311,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
                               color: Colors.white, strokeWidth: 2))
                       : const Icon(Icons.person_add_alt_1_rounded, size: 22),
                   label: Text(
-                    _saving ? 'Saving...' : 'Save Student',
+                    _saving ? 'Saving...' : (widget.studentId != null ? 'Save Changes' : 'Save Student'),
                     style: const TextStyle(
                         fontSize: 16, fontWeight: FontWeight.w700),
                   ),
@@ -402,6 +470,45 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
                   ))
               .toList(),
           onChanged: (val) => setState(() => _selectedGrade = val),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBatchDropdown() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: _inputBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _divider, width: 1),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _selectedBatch,
+          isExpanded: true,
+          hint: Row(
+            children: [
+              Icon(Icons.search_rounded, color: _subText.withOpacity(0.6), size: 20),
+              const SizedBox(width: 10),
+              Text(
+                'Search and select batch',
+                style: TextStyle(
+                    color: _subText.withOpacity(0.6), fontSize: 14),
+              ),
+            ],
+          ),
+          icon: Icon(Icons.unfold_more_rounded,
+              color: _subText.withOpacity(0.6), size: 22),
+          items: _batches
+              .map((b) => DropdownMenuItem(
+                    value: b,
+                    child: Text(b,
+                        style: const TextStyle(
+                            fontSize: 14, color: _darkText)),
+                  ))
+              .toList(),
+          onChanged: (val) => setState(() => _selectedBatch = val),
         ),
       ),
     );
