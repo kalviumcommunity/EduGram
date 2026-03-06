@@ -117,6 +117,19 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
     if (result == true) _loadStudents();
   }
 
+  Future<void> _navigateToEdit(QueryDocumentSnapshot doc) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddStudentScreen(
+          studentId: doc.id,
+          studentData: doc.data() as Map<String, dynamic>,
+        ),
+      ),
+    );
+    if (result == true) _loadStudents();
+  }
+
   void _showMsg(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg),
@@ -259,18 +272,91 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
                           : RefreshIndicator(
                               color: _purple,
                               onRefresh: _loadStudents,
-                              child: ListView.builder(
-                                padding: const EdgeInsets.fromLTRB(
-                                    16, 16, 16, 100),
-                                itemCount: _filtered.length,
-                                itemBuilder: (_, i) =>
-                                    _buildStudentCard(_filtered[i], i),
-                              ),
+                              child: _buildGroupedList(),
                             ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildGroupedList() {
+    // Group filtered students by batch
+    final Map<String, List<QueryDocumentSnapshot>> grouped = {};
+    for (var doc in _filtered) {
+      final data = doc.data() as Map<String, dynamic>;
+      final batch = data['batch']?.toString() ?? 'Unassigned';
+      final key = batch.isNotEmpty ? batch : 'Unassigned';
+      if (!grouped.containsKey(key)) {
+        grouped[key] = [];
+      }
+      grouped[key]!.add(doc);
+    }
+
+    // Sort keys (Unassigned at the end)
+    final keys = grouped.keys.toList();
+    keys.sort((a, b) {
+      if (a == 'Unassigned') return 1;
+      if (b == 'Unassigned') return -1;
+      return a.compareTo(b);
+    });
+
+    int globalIndex = 0;
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+      itemCount: keys.length,
+      itemBuilder: (context, sectionIndex) {
+        final batchName = keys[sectionIndex];
+        final studentsInBatch = grouped[batchName]!;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Section Header
+            Padding(
+              padding: EdgeInsets.only(left: 4, bottom: 12, top: sectionIndex == 0 ? 0 : 16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: _purple,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    batchName,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: _darkText,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '(${studentsInBatch.length})',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _subText,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Student Cards
+            ...studentsInBatch.map((doc) {
+              final widget = _buildStudentCard(doc, globalIndex);
+              globalIndex++;
+              return widget;
+            }),
+          ],
+        );
+      },
     );
   }
 
@@ -399,67 +485,103 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
                     ),
                   ),
                   const SizedBox(width: 14),
-                  // Info
+                  // Info + actions
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          name,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: _darkText,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.phone_android_rounded,
-                                size: 13, color: _subText),
-                            const SizedBox(width: 4),
-                            Text(
-                              phone,
-                              style: const TextStyle(
-                                  fontSize: 12, color: _subText),
+                            // Name and Phone
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    name,
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: _darkText,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.phone_android_rounded,
+                                          size: 13, color: _subText),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        phone,
+                                        style: const TextStyle(
+                                            fontSize: 12, color: _subText),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Action buttons
+                            const SizedBox(width: 8),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                InkWell(
+                                  onTap: () => _navigateToEdit(doc),
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: _purpleSoft,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(Icons.edit_rounded,
+                                        color: _purple, size: 16),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                InkWell(
+                                  onTap: () => _deleteStudent(doc),
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFFEBEE),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(Icons.delete_outline_rounded,
+                                        color: Color(0xFFE53935), size: 16),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
+                        if (grade != null && grade.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: _purpleSoft,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'Grade $grade',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: _purple,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
-                    ),
-                  ),
-                  // Grade badge
-                  if (grade != null && grade.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: _purpleSoft,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        'Grade $grade',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: _purple,
-                        ),
-                      ),
-                    ),
-                  const SizedBox(width: 4),
-                  // Delete button
-                  InkWell(
-                    onTap: () => _deleteStudent(doc),
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFEBEE),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(Icons.delete_outline_rounded,
-                          color: Color(0xFFE53935), size: 18),
                     ),
                   ),
                 ],
