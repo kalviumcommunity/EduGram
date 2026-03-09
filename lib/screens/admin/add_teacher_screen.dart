@@ -61,12 +61,13 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
   @override
   void initState() {
     super.initState();
-    _loadBatches();
     if (widget.teacherData != null) {
       _nameController.text = widget.teacherData!['name']?.toString() ?? '';
       _phoneController.text = widget.teacherData!['phone']?.toString() ?? '';
-      _selectedBatch = widget.teacherData!['batch']?.toString();
+      // Don't set _selectedBatch yet — wait until batches are loaded
+      // so the dropdown value is guaranteed to exist in the items list.
     }
+    _loadBatches();
   }
 
   Future<void> _loadBatches() async {
@@ -76,8 +77,18 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
       if (mounted) {
         setState(() {
           _batches.clear();
+          final seen = <String>{};
           for (final doc in snap.docs) {
-            _batches.add(doc.data()['name']?.toString() ?? doc.id);
+            final name = doc.data()['name']?.toString() ?? doc.id;
+            if (seen.add(name)) {
+              // seen.add returns false if already present — deduplicate
+              _batches.add(name);
+            }
+          }
+          // Now it is safe to restore the pre-selected batch
+          if (widget.teacherData != null) {
+            final saved = widget.teacherData!['batch']?.toString();
+            _selectedBatch = _batches.contains(saved) ? saved : null;
           }
         });
       }
