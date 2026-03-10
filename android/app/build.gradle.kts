@@ -7,12 +7,12 @@ plugins {
 
 android {
     namespace = "com.edugram.edugram"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.edugram.edugram"
         minSdk = flutter.minSdkVersion
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
         multiDexEnabled = true
