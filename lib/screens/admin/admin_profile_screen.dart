@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../login_screen.dart';
+import 'notifications_screen.dart';
 
 const _blue = Color(0xFF2196F3);
 const _blueSoft = Color(0xFFE8F1FD);
@@ -166,6 +167,13 @@ class AdminProfileScreen extends StatelessWidget {
                   title: 'Notifications',
                   subtitle: 'Manage notification settings',
                   showArrow: true,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const NotificationsScreen()),
+                    );
+                  },
                 ),
                 _SettingItem(
                   icon: Icons.language_rounded,
@@ -194,6 +202,13 @@ class AdminProfileScreen extends StatelessWidget {
                   title: 'Privacy Policy',
                   subtitle: 'View privacy policy',
                   showArrow: true,
+                  onTap: () {
+                    // TODO: Navigate to privacy policy
+                    // Navigator.push(
+                    //     context,
+                    //     MaterialPageRoute(
+                    //         builder: (_) => const PrivacyPolicyScreen()));
+                  },
                 ),
               ]),
 
@@ -288,57 +303,64 @@ class AdminProfileScreen extends StatelessWidget {
             children: List.generate(items.length, (i) {
               final item = items[i];
               return Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 12),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: item.iconBg,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child:
-                              Icon(item.icon, color: item.iconColor, size: 20),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: item.onTap,
+                        borderRadius: BorderRadius.circular(item.onTap != null ? 14 : 0),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 12),
+                          child: Row(
                             children: [
-                              Text(
-                                item.title,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: _darkText,
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: item.iconBg,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child:
+                                    Icon(item.icon, color: item.iconColor, size: 20),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item.title,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: _darkText,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      item.subtitle,
+                                      style: const TextStyle(
+                                          fontSize: 12, color: _subText),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                item.subtitle,
-                                style: const TextStyle(
-                                    fontSize: 12, color: _subText),
-                              ),
+                              if (item.showArrow)
+                                const Icon(Icons.chevron_right_rounded,
+                                    color: _subText, size: 20),
                             ],
                           ),
                         ),
-                        if (item.showArrow)
-                          const Icon(Icons.chevron_right_rounded,
-                              color: _subText, size: 20),
-                      ],
+                      ),
                     ),
-                  ),
-                  if (i < items.length - 1)
-                    const Padding(
-                      padding: EdgeInsets.only(left: 66),
-                      child: Divider(height: 1, color: _divider),
-                    ),
-                ],
-              );
+                    if (i < items.length - 1)
+                      const Padding(
+                        padding: EdgeInsets.only(left: 66),
+                        child: Divider(height: 1, color: _divider),
+                      ),
+                  ],
+                );
             }),
           ),
         ),
@@ -354,6 +376,7 @@ class _SettingItem {
   final String title;
   final String subtitle;
   final bool showArrow;
+  final VoidCallback? onTap;
 
   const _SettingItem({
     required this.icon,
@@ -362,5 +385,6 @@ class _SettingItem {
     required this.title,
     required this.subtitle,
     this.showArrow = false,
+    this.onTap,
   });
 }

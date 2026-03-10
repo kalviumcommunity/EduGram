@@ -26,6 +26,17 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
   List<QueryDocumentSnapshot> _filtered = [];
   bool _isLoading = true;
 
+  // Filter states
+  String _selectedBatch = 'All';
+  String _selectedGrade = 'All';
+
+  // Available options
+  final List<String> _batchOptions = ['All', 'Morning', 'Evening'];
+  final List<String> _gradeOptions = [
+    'All',
+    '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th', '11th', '12th'
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -66,17 +77,29 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
   void _filterStudents() {
     final q = _searchController.text.trim().toLowerCase();
     setState(() {
-      if (q.isEmpty) {
-        _filtered = List.from(_allStudents);
-      } else {
-        _filtered = _allStudents.where((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          final name = (data['name'] ?? '').toString().toLowerCase();
-          final phone = (data['phone'] ?? '').toString().toLowerCase();
-          final grade = (data['grade'] ?? '').toString().toLowerCase();
-          return name.contains(q) || phone.contains(q) || grade.contains(q);
-        }).toList();
-      }
+      _filtered = _allStudents.where((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        
+        // Search text check
+        final name = (data['name'] ?? '').toString().toLowerCase();
+        final phone = (data['phone'] ?? '').toString().toLowerCase();
+        final dbGrade = (data['grade'] ?? '').toString().toLowerCase();
+        final matchesSearch = name.contains(q) || phone.contains(q) || dbGrade.contains(q);
+
+        // Batch check
+        final dbBatch = data['batch']?.toString() ?? 'Unassigned';
+        final matchesBatch = _selectedBatch == 'All' || dbBatch == _selectedBatch;
+
+        // Grade check
+        // Handle variations like '4' vs '4th' or just normalize to the exact string for 'All' check
+        final exactGrade = data['grade']?.toString() ?? '';
+        final matchesGrade = _selectedGrade == 'All' ||
+            exactGrade == _selectedGrade ||
+            exactGrade.replaceAll(RegExp(r'[^0-9]'), '') ==
+                _selectedGrade.replaceAll(RegExp(r'[^0-9]'), '');
+
+        return matchesSearch && matchesBatch && matchesGrade;
+      }).toList();
     });
   }
 
@@ -255,10 +278,76 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  
+                  // ── Filters Row ──
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildDropdown(
+                          value: _selectedBatch,
+                          items: _batchOptions,
+                          icon: Icons.access_time_filled_rounded,
+                          label: 'Batch',
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() => _selectedBatch = val);
+                              _filterStudents();
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildDropdown(
+                          value: _selectedGrade,
+                          items: _gradeOptions,
+                          icon: Icons.school_rounded,
+                          label: 'Grade',
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() => _selectedGrade = val);
+                              _filterStudents();
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
             Container(height: 1, color: _divider),
+
+            // ── Total Filtered Count Indicator ──
+            if (!_isLoading && _allStudents.isNotEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                color: _bg,
+                child: Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: _purple,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Showing ${_filtered.length} matching students',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: _subText,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
 
             // ── Body ──
             Expanded(
@@ -281,81 +370,61 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
     );
   }
 
+  Widget _buildDropdown({
+    required String value,
+    required List<String> items,
+    required IconData icon,
+    required String label,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: _purpleSoft.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _purpleSoft, width: 1),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: value,
+          isExpanded: true,
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: _purple),
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: _purple,
+          ),
+          dropdownColor: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          items: items.map((String item) {
+            return DropdownMenuItem<String>(
+              value: item,
+              child: Row(
+                children: [
+                  Icon(icon, size: 16, color: _purple.withOpacity(0.7)),
+                  const SizedBox(width: 8),
+                  Text(item == 'All' ? 'All ${label}s' : item),
+                ],
+              ),
+            );
+          }).toList(),
+          onChanged: onChanged,
+        ),
+      ),
+    );
+  }
+
   Widget _buildGroupedList() {
-    // Group filtered students by batch
-    final Map<String, List<QueryDocumentSnapshot>> grouped = {};
-    for (var doc in _filtered) {
-      final data = doc.data() as Map<String, dynamic>;
-      final batch = data['batch']?.toString() ?? 'Unassigned';
-      final key = batch.isNotEmpty ? batch : 'Unassigned';
-      if (!grouped.containsKey(key)) {
-        grouped[key] = [];
-      }
-      grouped[key]!.add(doc);
-    }
-
-    // Sort keys (Unassigned at the end)
-    final keys = grouped.keys.toList();
-    keys.sort((a, b) {
-      if (a == 'Unassigned') return 1;
-      if (b == 'Unassigned') return -1;
-      return a.compareTo(b);
-    });
-
     int globalIndex = 0;
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-      itemCount: keys.length,
-      itemBuilder: (context, sectionIndex) {
-        final batchName = keys[sectionIndex];
-        final studentsInBatch = grouped[batchName]!;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Section Header
-            Padding(
-              padding: EdgeInsets.only(left: 4, bottom: 12, top: sectionIndex == 0 ? 0 : 16),
-              child: Row(
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: _purple,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    batchName,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: _darkText,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '(${studentsInBatch.length})',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: _subText,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Student Cards
-            ...studentsInBatch.map((doc) {
-              final widget = _buildStudentCard(doc, globalIndex);
-              globalIndex++;
-              return widget;
-            }),
-          ],
-        );
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+      itemCount: _filtered.length,
+      itemBuilder: (context, index) {
+        final doc = _filtered[index];
+        final widget = _buildStudentCard(doc, globalIndex);
+        globalIndex++;
+        return widget;
       },
     );
   }
