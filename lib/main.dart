@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -11,6 +12,9 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Initialize local notifications
+  await NotificationService.instance.init();
 
   // Set status bar style
   SystemChrome.setSystemUIOverlayStyle(
@@ -22,6 +26,7 @@ void main() async {
 
   runApp(const EduTrackApp());
 }
+
 
 class EduTrackApp extends StatelessWidget {
   const EduTrackApp({super.key});
