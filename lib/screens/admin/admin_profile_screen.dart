@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../login_screen.dart';
 import 'notifications_screen.dart';
+import 'privacy_policy_screen.dart';
 
 const _blue = Color(0xFF2196F3);
 const _blueSoft = Color(0xFFE8F1FD);
@@ -203,11 +204,10 @@ class AdminProfileScreen extends StatelessWidget {
                   subtitle: 'View privacy policy',
                   showArrow: true,
                   onTap: () {
-                    // TODO: Navigate to privacy policy
-                    // Navigator.push(
-                    //     context,
-                    //     MaterialPageRoute(
-                    //         builder: (_) => const PrivacyPolicyScreen()));
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const PrivacyPolicyScreen()));
                   },
                 ),
               ]),
