@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../app_colors.dart';
+import '../../services/notification_service.dart';
 
 // ── Color aliases pointing to shared constants ──
 const _blue = appBlue;
@@ -63,6 +64,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
   bool _saving = false;
 
   final List<String> _batches = [];
+  bool _batchesLoaded = false;
 
   @override
   void initState() {
@@ -71,7 +73,16 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
     if (widget.studentData != null) {
       _nameController.text = widget.studentData!['name']?.toString() ?? '';
       _phoneController.text = widget.studentData!['phone']?.toString() ?? '';
-      _selectedGrade = widget.studentData!['grade']?.toString();
+
+      // Normalize grade: Firestore may store "Grade 10th" or just "10th"
+      String? rawGrade = widget.studentData!['grade']?.toString();
+      if (rawGrade != null && rawGrade.startsWith('Grade ')) {
+        rawGrade = rawGrade.substring(6); // strip "Grade " prefix
+      }
+      // Only set if it's a known grade option
+      _selectedGrade = _gradeOptions.contains(rawGrade) ? rawGrade : null;
+
+      // Batch will be validated after _loadBatches completes
       _selectedBatch = widget.studentData!['batch']?.toString();
     }
   }
@@ -80,10 +91,21 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
     try {
       final snap = await FirebaseFirestore.instance.collection('batches').get();
       if (mounted) {
+        // Use a LinkedHashSet to deduplicate while preserving order
+        final seen = <String>{};
+        final unique = <String>[];
+        for (final doc in snap.docs) {
+          final name = doc.data()['name']?.toString() ?? doc.id;
+          if (seen.add(name)) unique.add(name);
+        }
         setState(() {
-          _batches.clear();
-          for (final doc in snap.docs) {
-            _batches.add(doc.data()['name']?.toString() ?? doc.id);
+          _batches
+            ..clear()
+            ..addAll(unique);
+          _batchesLoaded = true;
+          // Validate that the selected batch actually exists in the list
+          if (_selectedBatch != null && !_batches.contains(_selectedBatch)) {
+            _selectedBatch = null;
           }
         });
       }
@@ -130,6 +152,8 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
       } else {
         data['createdAt'] = FieldValue.serverTimestamp();
         await FirebaseFirestore.instance.collection('students').add(data);
+        // Fire notification
+        NotificationService.instance.notifyNewStudent(name);
         if (mounted) {
           _showMsg('Student added successfully!');
           Navigator.pop(context, true);
@@ -484,32 +508,50 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
         border: Border.all(color: _divider, width: 1),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: _selectedBatch,
-          isExpanded: true,
-          hint: Row(
-            children: [
-              Icon(Icons.search_rounded, color: _subText.withOpacity(0.6), size: 20),
-              const SizedBox(width: 10),
-              Text(
-                'Search and select batch',
-                style: TextStyle(
-                    color: _subText.withOpacity(0.6), fontSize: 14),
+        child: _batchesLoaded
+            ? DropdownButton<String>(
+                // Only pass value when it's in the list (guards duplicate/missing)
+                value: (_selectedBatch != null &&
+                        _batches.contains(_selectedBatch))
+                    ? _selectedBatch
+                    : null,
+                isExpanded: true,
+                hint: Row(
+                  children: [
+                    Icon(Icons.search_rounded,
+                        color: _subText.withOpacity(0.6), size: 20),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Search and select batch',
+                      style: TextStyle(
+                          color: _subText.withOpacity(0.6), fontSize: 14),
+                    ),
+                  ],
+                ),
+                icon: Icon(Icons.unfold_more_rounded,
+                    color: _subText.withOpacity(0.6), size: 22),
+                items: _batches
+                    .map((b) => DropdownMenuItem(
+                          value: b,
+                          child: Text(b,
+                              style: const TextStyle(
+                                  fontSize: 14, color: _darkText)),
+                        ))
+                    .toList(),
+                onChanged: (val) =>
+                    setState(() => _selectedBatch = val),
+              )
+            : const SizedBox(
+                height: 52,
+                child: Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: _blue),
+                  ),
+                ),
               ),
-            ],
-          ),
-          icon: Icon(Icons.unfold_more_rounded,
-              color: _subText.withOpacity(0.6), size: 22),
-          items: _batches
-              .map((b) => DropdownMenuItem(
-                    value: b,
-                    child: Text(b,
-                        style: const TextStyle(
-                            fontSize: 14, color: _darkText)),
-                  ))
-              .toList(),
-          onChanged: (val) => setState(() => _selectedBatch = val),
-        ),
       ),
     );
   }
