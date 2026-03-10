@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../app_colors.dart';
-import '../../services/notification_service.dart';
 
 // ── Color aliases pointing to shared constants ──
 const _blue = appBlue;
@@ -152,8 +151,6 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
       } else {
         data['createdAt'] = FieldValue.serverTimestamp();
         await FirebaseFirestore.instance.collection('students').add(data);
-        // Fire notification
-        NotificationService.instance.notifyNewStudent(name);
         if (mounted) {
           _showMsg('Student added successfully!');
           Navigator.pop(context, true);
